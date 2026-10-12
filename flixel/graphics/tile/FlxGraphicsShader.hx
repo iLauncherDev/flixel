@@ -59,11 +59,15 @@ class FlxGraphicsShader extends GraphicsShader
 		}
 	", true)
 	@:glFragmentSource("
+		#define DEPTH_PASS_SUPPORTED
 		#pragma header
 
 		void main(void)
 		{
-			gl_FragColor = flixel_texture2D(bitmap, openfl_TextureCoordv);
+			vec4 color = flixel_texture2D(bitmap, openfl_TextureCoordv);
+			DEPTH_ALPHA_CHECK(color.a);
+
+			gl_FragColor = color;
 		}
 	", true)
 	public function new()
