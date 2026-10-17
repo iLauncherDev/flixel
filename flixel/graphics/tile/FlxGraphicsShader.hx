@@ -57,6 +57,20 @@ class FlxGraphicsShader extends GraphicsShader
 		{
 			return openfl_applyBlend(flixel_sampleBitmap(bitmap, coord));
 		}
+
+		float flixel_texture2D_alpha(sampler2D bitmap, vec2 coord)
+		{
+			float alpha = texture2D(bitmap, coord).r;
+			if (!(hasTransform || openfl_HasColorTransform))
+				return alpha;
+
+			if (openfl_HasColorTransform || hasColorTransform)
+			{
+				alpha = clamp (openfl_ColorOffsetv.a + alpha, 0.0, 1.0);
+			}
+
+			return alpha * openfl_Alphav;
+		}
 	", true)
 	@:glFragmentSource("
 		#define DEPTH_PASS_SUPPORTED
@@ -64,10 +78,13 @@ class FlxGraphicsShader extends GraphicsShader
 
 		void main(void)
 		{
-			vec4 color = flixel_texture2D(bitmap, openfl_TextureCoordv);
-			DEPTH_ALPHA_CHECK(color.a);
+		#ifdef DEPTH_PASS
+			float alpha = flixel_texture2D_alpha(bitmap, openfl_TextureCoordv);
+			DEPTH_ALPHA_CHECK(alpha);
+			return;
+		#endif
 
-			gl_FragColor = color;
+			gl_FragColor = flixel_texture2D(bitmap, openfl_TextureCoordv);
 		}
 	", true)
 	public function new()
