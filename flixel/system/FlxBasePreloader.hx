@@ -1,5 +1,7 @@
 package flixel.system;
 
+import haxe.Int64;
+
 import flixel.util.FlxColor;
 import flixel.util.FlxStringUtil;
 import openfl.Lib;
@@ -156,15 +158,15 @@ class FlxBasePreloader extends DefaultPreloader
 	 * This function is triggered on each 'frame'.
 	 * It is highly recommended that you do NOT override this.
 	 */
-	function onEnterFrame(E:Event):Void
+	function onEnterFrame(E):Void
 	{
-		var time = Date.now().getTime() - _startTime;
+		var time = E.deltaTime;
 		var min = minDisplayTime * 1000;
 		var percent:Float = _percent;
 		if ((min > 0) && (_percent > time / min))
 			percent = time / min;
 		if (!_destroyed)
-			update(percent);
+			update(percent, E.oldFrameTimestamp, E.currentFrameTimestamp);
 
 		if (_loaded && (min <= 0 || time / min >= 1))
 		{
@@ -186,7 +188,7 @@ class FlxBasePreloader extends DefaultPreloader
 	 *
 	 * @param	Percent		How much of the program has loaded.
 	 */
-	function update(Percent:Float):Void {}
+	function update(Percent:Float, oldFrameTimestamp:Int64, currentFrameTimestamp:Int64):Void {}
 
 	/**
 	 * This function is called EXTERNALLY once the movie has actually finished being loaded.

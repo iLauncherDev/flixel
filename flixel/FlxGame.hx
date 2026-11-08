@@ -1,5 +1,7 @@
 package flixel;
 
+import haxe.Int64;
+
 import flixel.graphics.tile.FlxDrawBaseItem;
 import flixel.system.FlxSplash;
 import flixel.util.FlxArrayUtil;
@@ -323,7 +325,7 @@ class FlxGame extends Sprite
 		stage.addEventListener(Event.ENTER_FRAME, function(e)
 		{
 			ticks = getTicks();
-			__enterFrame(ticks - _total);
+			__enterFrame(e.deltaTime, e.oldFrameTimestamp, e.currentFrameTimestamp);
 			_total = ticks;
 		});
 		#end
@@ -440,7 +442,7 @@ class FlxGame extends Sprite
 	 * Handles the `onEnterFrame` call and figures out how many updates and draw calls to do.
 	 */
 	@SuppressWarnings("checkstyle:MethodName")
-	private #if !flash override #end function __enterFrame(deltaTime:Float):Void
+	private #if !flash override #end function __enterFrame(deltaTime:Float, oldFrameTimestamp:Int64, currentFrameTimestamp:Int64):Void
 	{
 		#if !flash
 		ticks = getTicks();
@@ -475,7 +477,7 @@ class FlxGame extends Sprite
 				}
 			}
 
-			step(deltaTime);
+			step(deltaTime, oldFrameTimestamp, currentFrameTimestamp);
 
 			#if FLX_DEBUG
 			FlxBasic.visibleCount = 0;
@@ -582,7 +584,7 @@ class FlxGame extends Sprite
 	 * the appropriate number of times each frame.
 	 * This block handles state changes, replays, all that good stuff.
 	 */
-	function step(deltaTime:Float):Void
+	function step(deltaTime:Float, oldFrameTimestamp:Int64, currentFrameTimestamp:Int64):Void
 	{
 		// Handle game reset request
 		if (_resetGame)
@@ -598,7 +600,7 @@ class FlxGame extends Sprite
 		FlxBasic.activeCount = 0;
 		#end
 
-		update(deltaTime);
+		update(deltaTime, oldFrameTimestamp, currentFrameTimestamp);
 
 		#if FLX_DEBUG
 		debugger.stats.activeObjects(FlxBasic.activeCount);
@@ -639,7 +641,7 @@ class FlxGame extends Sprite
 	 * This function is called by `step()` and updates the actual game state.
 	 * May be called multiple times per "frame" or draw call.
 	 */
-	function update(deltaTime:Float):Void
+	function update(deltaTime:Float, oldFrameTimestamp:Int64, currentFrameTimestamp:Int64):Void
 	{
 		if (!_state.active || !_state.exists)
 			return;
