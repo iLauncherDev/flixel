@@ -28,7 +28,6 @@ class FlxDrawTrianglesItem extends FlxDrawBaseItem<FlxDrawTrianglesItem>
 	static var point:FlxPoint = FlxPoint.get();
 	static var rect:FlxRect = FlxRect.get();
 
-	var alphas:Array<Float>;
 	var colorMultipliers:Array<Float>;
 	var colorOffsets:Array<Float>;
 
@@ -49,7 +48,6 @@ class FlxDrawTrianglesItem extends FlxDrawBaseItem<FlxDrawTrianglesItem>
 	{
 		super();
 		type = FlxDrawItemType.TRIANGLES;
-		alphas = [];
 	}
 
 	override public function render(camera:FlxCamera):Void
@@ -63,18 +61,9 @@ class FlxDrawTrianglesItem extends FlxDrawBaseItem<FlxDrawTrianglesItem>
 		shader.bitmap.filter = (camera.antialiasing || antialiasing) ? LINEAR : NEAREST;
 		shader.bitmap.blendTarget = blendTarget;
 		shader.bitmap.wrap = REPEAT; // in order to prevent breaking tiling behaviour in classes that use drawTriangles
-		shader.alpha.value = alphas;
 
-		if (colored || hasColorOffsets)
-		{
-			shader.colorMultiplier.value = colorMultipliers;
-			shader.colorOffset.value = colorOffsets;
-		}
-		else
-		{
-			shader.colorMultiplier.value = null;
-			shader.colorOffset.value = null;
-		}
+		shader.colorMultiplier.value = colorMultipliers;
+		shader.colorOffset.value = colorOffsets;
 
 		setParameterValue(shader.hasTransform, true);
 		setParameterValue(shader.hasColorTransform, colored || hasColorOffsets);
@@ -112,7 +101,6 @@ class FlxDrawTrianglesItem extends FlxDrawBaseItem<FlxDrawTrianglesItem>
 		verticesPosition = 0;
 		indicesPosition = 0;
 
-		alphas.resize(0);
 		if (colorMultipliers != null)
 			colorMultipliers.resize(0);
 		if (colorOffsets != null)
@@ -127,7 +115,6 @@ class FlxDrawTrianglesItem extends FlxDrawBaseItem<FlxDrawTrianglesItem>
 		indices = null;
 		uvtData = null;
 		bounds = null;
-		alphas = null;
 		colorMultipliers = null;
 		colorOffsets = null;
 	}
@@ -192,59 +179,46 @@ class FlxDrawTrianglesItem extends FlxDrawBaseItem<FlxDrawTrianglesItem>
 
 			final alphaMultiplier = transform != null ? transform.alphaMultiplier : 1.0;
 			final perVertexAlpha = colors != null && colors.length > 0;
-			var an:Int = alphas.length;
-			if (perVertexAlpha)
+
+			if (colorMultipliers == null)
+				colorMultipliers = [];
+
+			if (colorOffsets == null)
+				colorOffsets = [];
+
+			final rm = transform != null ? transform.redMultiplier : 1.0;
+			final gm = transform != null ? transform.greenMultiplier : 1.0;
+			final bm = transform != null ? transform.blueMultiplier : 1.0;
+			final ro = transform != null ? transform.redOffset / 255.0 : 0.0;
+			final go = transform != null ? transform.greenOffset / 255.0 : 0.0;
+			final bo = transform != null ? transform.blueOffset / 255.0 : 0.0;
+			final ao = transform != null ? transform.alphaOffset / 255.0 : 0.0;
+
+			var mn:Int = colorMultipliers.length;
+			var on:Int = colorOffsets.length;
+
+			for (i in 0...indicesLength)
 			{
-				for (i in 0...indicesLength)
-					alphas[an++] = alphaMultiplier * (((colors[indices[i]] >> 24) & 0xFF) / 255);
-			}
-			else
-			{
-				for (i in 0...indicesLength)
-					alphas[an++] = alphaMultiplier;
-			}
-
-			if (colored || hasColorOffsets)
-			{
-				if (colorMultipliers == null)
-					colorMultipliers = [];
-
-				if (colorOffsets == null)
-					colorOffsets = [];
-
-				final rm = transform != null ? transform.redMultiplier : 1.0;
-				final gm = transform != null ? transform.greenMultiplier : 1.0;
-				final bm = transform != null ? transform.blueMultiplier : 1.0;
-				final ro = transform != null ? transform.redOffset : 0.0;
-				final go = transform != null ? transform.greenOffset : 0.0;
-				final bo = transform != null ? transform.blueOffset : 0.0;
-				final ao = transform != null ? transform.alphaOffset : 0.0;
-
-				var mn:Int = colorMultipliers.length;
-				var on:Int = colorOffsets.length;
-
-				for (i in 0...indicesLength)
+				if (perVertexAlpha)
 				{
-					if (perVertexAlpha)
-					{
-						final vc:Int = colors[indices[i]];
-						colorMultipliers[mn++] = rm * (((vc >> 16) & 0xFF) / 255);
-						colorMultipliers[mn++] = gm * (((vc >> 8) & 0xFF) / 255);
-						colorMultipliers[mn++] = bm * ((vc & 0xFF) / 255);
-					}
-					else
-					{
-						colorMultipliers[mn++] = rm;
-						colorMultipliers[mn++] = gm;
-						colorMultipliers[mn++] = bm;
-					}
-					colorMultipliers[mn++] = 1;
-
-					colorOffsets[on++] = ro;
-					colorOffsets[on++] = go;
-					colorOffsets[on++] = bo;
-					colorOffsets[on++] = ao;
+					final vc:Int = colors[indices[i]];
+					colorMultipliers[mn++] = rm * (((vc >> 16) & 0xFF) / 255);
+					colorMultipliers[mn++] = gm * (((vc >> 8) & 0xFF) / 255);
+					colorMultipliers[mn++] = bm * ((vc & 0xFF) / 255);
 				}
+				else
+				{
+					colorMultipliers[mn++] = rm;
+					colorMultipliers[mn++] = gm;
+					colorMultipliers[mn++] = bm;
+				}
+				final vertexAlpha = perVertexAlpha ? (((colors[indices[i]] >> 24) & 0xFF) / 255) : 1.0;
+				colorMultipliers[mn++] = alphaMultiplier * vertexAlpha;
+
+				colorOffsets[on++] = ro;
+				colorOffsets[on++] = go;
+				colorOffsets[on++] = bo;
+				colorOffsets[on++] = ao;
 			}
 
 			verticesPosition += verticesLength;
@@ -324,44 +298,39 @@ class FlxDrawTrianglesItem extends FlxDrawBaseItem<FlxDrawTrianglesItem>
 		indices[prevIndicesPos + 5] = prevNumberOfVertices + 3; // BR
 
 		final alphaMultiplier = transform != null ? transform.alphaMultiplier : 1.0;
+
+		if (colorMultipliers == null)
+			colorMultipliers = [];
+
+		if (colorOffsets == null)
+			colorOffsets = [];
+
 		for (i in 0...INDICES_PER_QUAD)
-			alphas.push(alphaMultiplier);
-
-		if (colored || hasColorOffsets)
 		{
-			if (colorMultipliers == null)
-				colorMultipliers = [];
-
-			if (colorOffsets == null)
-				colorOffsets = [];
-
-			for (i in 0...INDICES_PER_QUAD)
+			if (transform != null)
 			{
-				if (transform != null)
-				{
-					colorMultipliers.push(transform.redMultiplier);
-					colorMultipliers.push(transform.greenMultiplier);
-					colorMultipliers.push(transform.blueMultiplier);
+				colorMultipliers.push(transform.redMultiplier);
+				colorMultipliers.push(transform.greenMultiplier);
+				colorMultipliers.push(transform.blueMultiplier);
 
-					colorOffsets.push(transform.redOffset);
-					colorOffsets.push(transform.greenOffset);
-					colorOffsets.push(transform.blueOffset);
-					colorOffsets.push(transform.alphaOffset);
-				}
-				else
-				{
-					colorMultipliers.push(1);
-					colorMultipliers.push(1);
-					colorMultipliers.push(1);
-
-					colorOffsets.push(0);
-					colorOffsets.push(0);
-					colorOffsets.push(0);
-					colorOffsets.push(0);
-				}
-
-				colorMultipliers.push(1);
+				colorOffsets.push(transform.redOffset / 255.0);
+				colorOffsets.push(transform.greenOffset / 255.0);
+				colorOffsets.push(transform.blueOffset / 255.0);
+				colorOffsets.push(transform.alphaOffset / 255.0);
 			}
+			else
+			{
+				colorMultipliers.push(1);
+				colorMultipliers.push(1);
+				colorMultipliers.push(1);
+
+				colorOffsets.push(0);
+				colorOffsets.push(0);
+				colorOffsets.push(0);
+				colorOffsets.push(0);
+			}
+
+			colorMultipliers.push(alphaMultiplier);
 		}
 
 		verticesPosition += 8;

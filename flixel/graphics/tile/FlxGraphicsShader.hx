@@ -5,52 +5,48 @@ import openfl.display.GraphicsShader;
 class FlxGraphicsShader extends GraphicsShader
 {
 	@:glVertexHeader("
-		attribute float alpha;
 		attribute vec4 colorMultiplier;
 		attribute vec4 colorOffset;
 		uniform bool hasColorTransform;
 	", true)
 	@:glVertexBody("
-		openfl_Alphav = openfl_Alpha * alpha;
-
-		if (hasColorTransform)
-		{
-			if (openfl_HasColorTransform)
-			{
-				openfl_ColorOffsetv = (openfl_ColorOffsetv * colorMultiplier) + (colorOffset / 255.0);
-				openfl_ColorMultiplierv *= colorMultiplier;
-			}
-			else
-			{
-				openfl_ColorOffsetv = colorOffset / 255.0;
-				openfl_ColorMultiplierv = colorMultiplier;
-			}
-		}
+		openfl_ColorOffsetv = colorOffset;
+		openfl_ColorMultiplierv = colorMultiplier;
 	", true)
 	@:glFragmentHeader("
 		uniform bool hasTransform;  // TODO: Is this still needed? Apparently, yes!
 		uniform bool hasColorTransform;
 		uniform bool premultiplyAlpha;
+
+		vec4 flixel_unpremultiply_alpha(vec4 color)
+		{
+			float color_alpha = max(color.a, ALPHA_EPSILON);
+			float color_inv_alpha = inversesqrt(color_alpha * color_alpha);
+
+			return vec4(color.rgb * color_inv_alpha, color.a);
+		}
+
+		vec4 flixel_premultiply_alpha(vec4 color)
+		{
+			return vec4(color.rgb * color.a, color.a);
+		}
+
 		vec4 flixel_sampleBitmap(sampler2D bitmap, vec2 coord)
 		{
 			vec4 color = texture2D(bitmap, coord);
-
 			if (premultiplyAlpha)
 				color.rgb *= color.a;
 
-			if (!(hasTransform || openfl_HasColorTransform))
-				return color;
+			vec4 color_unpremultiplied = flixel_unpremultiply_alpha(color);
+			color_unpremultiplied.a = openfl_ColorOffsetv.a + (openfl_ColorMultiplierv.a * color_unpremultiplied.a);
 
-			if (openfl_HasColorTransform || hasColorTransform)
-			{
-				color = vec4 (color.rgb / max(color.a, ALPHA_EPSILON), color.a);
-				vec4 mult = vec4 (openfl_ColorMultiplierv.rgb, 1.0);
-				color = clamp (openfl_ColorOffsetv + (color * mult), 0.0, 1.0);
+			vec3 offset_color = openfl_ColorOffsetv.rgb;
+			vec3 multiply_color = openfl_ColorMultiplierv.rgb;
 
-				return vec4 (color.rgb * color.a * openfl_Alphav, color.a * openfl_Alphav);
-			}
+			color_unpremultiplied.rgb *= multiply_color;
+			color_unpremultiplied.rgb += offset_color;
 
-			return color * openfl_Alphav;
+			return flixel_premultiply_alpha(color_unpremultiplied);
 		}
 
 		vec4 flixel_texture2D(sampler2D bitmap, vec2 coord)
